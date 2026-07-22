@@ -2,6 +2,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { prisma } from "@/lib/prisma";
 import AdminShell from "./AdminShell";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminLayout({
   children,
 }: Readonly<{
