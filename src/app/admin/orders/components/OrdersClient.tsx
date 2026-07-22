@@ -44,7 +44,8 @@ type OrderItem = {
   quantity: number;
   price: number;
   gst: number;
-  food: { id: string; name: string };
+  food: { id: string; name: string } | null;
+  foodName: string;
 };
 
 type Address = {
@@ -620,7 +621,7 @@ export default function OrdersClient({ currency, restaurant }: { currency: strin
                     >
                       <div className="flex items-center gap-2">
                         <Package className="size-3.5 text-muted-foreground" />
-                        <span>{item.food.name}</span>
+                        <span>{item.food?.name ?? item.foodName}</span>
                         <span className="text-muted-foreground">
                           x{item.quantity}
                         </span>
@@ -690,7 +691,7 @@ export default function OrdersClient({ currency, restaurant }: { currency: strin
                     },
                     items: selectedOrder.orderItems.map((item) => ({
                       id: item.id,
-                      name: item.food.name,
+                      name: item.food?.name ?? item.foodName,
                       quantity: item.quantity,
                       price: item.price,
                       gst: item.gst,
