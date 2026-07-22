@@ -1,0 +1,444 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  
+}
+
+ 
+// ENUMS
+ 
+
+enum Role {
+  OWNER
+  ADMIN
+}
+
+enum OrderType {
+  DINE_IN
+  DELIVERY
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  PREPARING
+  READY
+  OUT_FOR_DELIVERY
+  DELIVERED
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  ONLINE
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum OrderMode {
+  ACCEPTING
+  PAUSED
+  CLOSED
+}
+
+ 
+// ADMIN
+ 
+
+model Admin {
+  id            String   @id @default(cuid())
+
+  firstName     String
+  lastName      String?
+
+  email         String   @unique
+  passwordHash  String
+
+  role          Role     @default(ADMIN)
+
+  isActive      Boolean  @default(true)
+
+  lastLogin     DateTime?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+ 
+// RESTAURANT
+ 
+
+model Restaurant {
+  id                 String    @id @default(cuid())
+
+  restaurantName     String
+  tagline            String?
+  logoUrl            String?
+  logoPublicId       String?
+
+  phone              String
+  email              String
+
+  address            String
+
+  currency           String    @default("INR")
+
+  gstRate            Float     @default(5)
+
+  serviceCharge      Float     @default(0)
+
+  averagePrepTime    Int       @default(20)
+
+  autoAcceptOrders   Boolean   @default(false)
+
+  dineInEnabled      Boolean   @default(true)
+
+  deliveryEnabled    Boolean   @default(true)
+
+  orderMode          OrderMode @default(ACCEPTING)
+
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+ 
+// CATEGORY
+ 
+
+model Category {
+
+  id          String   @id @default(cuid())
+
+  name        String   @unique
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  foods       Food[]   @relation("CategoryFoods")
+}
+
+ 
+// FOOD
+
+
+model Food {
+
+  id            String   @id @default(cuid())
+
+  name          String
+
+  description   String?
+
+  imageUrl      String?
+
+  imagePublicId String?
+
+  price         Float
+
+  gst           Float     @default(5)
+
+  available     Boolean   @default(true)
+
+  categoryId    String?
+
+  category       Category? @relation("CategoryFoods", fields: [categoryId], references: [id], onDelete: SetNull)
+
+  categoryName   String?
+
+  cartItems      CartItem[]   @relation("FoodCartItems")
+
+  orderItems     OrderItem[]  @relation("FoodOrderItems")
+
+  ratings        Rating[]     @relation("FoodRatings")
+
+  createdAt      DateTime @default(now())
+
+  updatedAt      DateTime @updatedAt
+}
+
+ 
+// CUSTOMER
+ 
+
+model Customer {
+
+  id          String   @id @default(cuid())
+
+  name        String?
+
+  email       String?  @unique
+
+  phone       String   @unique
+
+  isVerified  Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+
+  updatedAt   DateTime @updatedAt
+
+  cart        Cart?
+
+  addresses   Address[]
+
+  orders      Order[]
+
+  ratings     Rating[]
+
+  sessions    CustomerSession[]
+
+  @@index([email])
+  @@index([phone])
+}
+
+ 
+// EMAIL OTP
+ 
+
+model EmailOtp {
+
+  id          String   @id @default(cuid())
+
+  email       String
+
+  otpHash     String
+
+  expiresAt   DateTime
+
+  attempts    Int      @default(0)
+
+  resendCount Int      @default(0)
+
+  verified    Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+
+  @@index([email])
+  @@index([expiresAt])
+}
+
+ 
+// CUSTOMER SESSION
+ 
+
+model CustomerSession {
+
+  id           String   @id @default(cuid())
+
+  customerId   String
+
+  customer     Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  sessionId    String   @unique
+
+  expiresAt    DateTime
+
+  createdAt    DateTime @default(now())
+
+  @@index([customerId])
+  @@index([sessionId])
+  @@index([expiresAt])
+}
+
+ 
+// CART
+ 
+
+model Cart {
+
+  id           String   @id @default(cuid())
+
+  customerId   String   @unique
+
+  customer     Customer @relation(fields: [customerId], references: [id])
+
+  items        CartItem[]
+
+  createdAt    DateTime @default(now())
+}
+
+ 
+// CART ITEM
+
+
+model CartItem {
+
+  id          String @id @default(cuid())
+
+  cartId      String
+
+  foodId      String
+
+  quantity    Int
+
+  cart        Cart @relation(fields: [cartId], references: [id])
+
+  food        Food @relation("FoodCartItems", fields: [foodId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, foodId])
+}
+
+ 
+// ADDRESS
+ 
+
+model Address {
+
+  id          String @id @default(cuid())
+
+  customerId  String
+
+  customer    Customer @relation(fields: [customerId], references: [id])
+
+  label       String?
+
+  houseNo     String
+
+  street      String
+
+  area        String
+
+  city        String
+
+  state       String
+
+  pincode     String
+
+  landmark    String?
+
+  latitude    Float?
+
+  longitude   Float?
+
+  isDefault   Boolean @default(false)
+
+  createdAt   DateTime @default(now())
+
+  updatedAt   DateTime @updatedAt
+
+  orders      Order[]
+}
+
+ 
+// ORDER
+ 
+
+model Order {
+
+  id               String @id @default(cuid())
+
+  orderNumber      Int    @unique
+
+  customerId       String
+
+  customer         Customer @relation(fields: [customerId], references: [id])
+
+  orderType        OrderType
+
+  tableNumber      Int?
+
+  addressId        String?
+
+  address          Address? @relation(fields: [addressId], references: [id])
+
+  paymentMethod    PaymentMethod
+
+  paymentStatus    PaymentStatus @default(PENDING)
+
+  razorpayOrderId  String?
+
+  razorpayPaymentId String?
+
+  paidAt           DateTime?
+
+  status           OrderStatus @default(PENDING)
+
+  subtotal         Float
+
+  gstAmount        Float
+
+  serviceCharge    Float
+
+  total            Float
+
+  orderItems       OrderItem[]
+
+  ratings          Rating[]
+
+  createdAt        DateTime @default(now())
+
+  updatedAt        DateTime @updatedAt
+}
+
+ 
+// ORDER ITEM
+
+
+model OrderItem {
+
+  id              String  @id @default(cuid())
+
+  orderId         String
+
+  foodId          String?
+
+  quantity        Int
+
+  price           Float
+
+  gst             Float
+
+  // Snapshot fields for historical order preservation
+  foodName        String
+  foodDescription String?
+  imageUrl        String?
+  categoryName    String?
+  foodPrice       Float
+  foodGst         Float
+
+  order           Order @relation(fields: [orderId], references: [id])
+
+  food            Food? @relation("FoodOrderItems", fields: [foodId], references: [id], onDelete: SetNull)
+}
+
+ 
+// RATING
+
+
+model Rating {
+
+  id          String   @id @default(cuid())
+
+  customerId  String?
+
+  foodId      String?
+
+  orderId     String
+
+  stars       Int
+
+  review      String?
+
+  // Snapshot fields for historical rating preservation
+  foodName    String
+  foodImageUrl String?
+
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  food        Food?    @relation("FoodRatings", fields: [foodId], references: [id], onDelete: SetNull)
+
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@unique([customerId, foodId, orderId])
+}
