@@ -14,6 +14,7 @@ import { ArrowLeft, Loader2, Mail, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import api from "@/lib/api";
 import axios from "axios";
+import toast from "react-hot-toast";
 
 const OTP_LENGTH = 6;
 const RESEND_COOLDOWN = 60;
@@ -38,6 +39,9 @@ export default function VerifyClient(_props: VerifyClientProps) {
   const [resending, setResending] = useState(false);
   const [countdown, setCountdown] = useState(RESEND_COOLDOWN);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  // Guards against the auto-submit effect re-firing after a successful verify
+  // (the component is still mounted while the redirect navigates).
+  const verifiedRef = useRef(false);
 
   useEffect(() => {
     if (!email) {
@@ -126,6 +130,8 @@ export default function VerifyClient(_props: VerifyClientProps) {
   );
 
   const handleVerify = useCallback(async () => {
+    if (verifiedRef.current) return;
+
     const otp = digits.join("");
     if (otp.length !== OTP_LENGTH) {
       setError("Please enter the complete 6-digit code");
@@ -137,13 +143,20 @@ export default function VerifyClient(_props: VerifyClientProps) {
 
     try {
       await api.post("/api/auth/verify-otp", { email, otp, name, phone, mode });
+      verifiedRef.current = true;
+      toast.success("Verified! Redirecting...");
       router.push(redirect);
+      return;
     } catch (err) {
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.message || "Verification failed");
-      } else {
-        setError("Something went wrong. Please try again.");
-      }
+      const message = axios.isAxiosError(err)
+        ? err.response?.data?.message || "Incorrect code. Please try again."
+        : "Something went wrong. Please try again.";
+      setError(message);
+      toast.error(message);
+      // Clear the entered code so the auto-submit effect doesn't re-fire and
+      // let the user try again immediately.
+      setDigits(Array(OTP_LENGTH).fill(""));
+      inputRefs.current[0]?.focus();
     } finally {
       setLoading(false);
     }

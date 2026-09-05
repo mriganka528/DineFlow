@@ -4,10 +4,13 @@ import { FormEvent, useMemo, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowRight,
+  ClipboardList,
   Eye,
   EyeOff,
   LockKeyhole,
   Mail,
+  Package,
+  Settings2,
   ShieldCheck,
   Sparkles,
   Utensils,
@@ -18,10 +21,34 @@ import { Label } from "@/components/ui/label";
 import api from "@/lib/api";
 import axios from "axios";
 
-const activityRows = [
-  { label: "Orders", value: "42", tone: "bg-emerald-500" },
-  { label: "Prep avg", value: "18m", tone: "bg-sky-500" },
-  { label: "Live menu", value: "96%", tone: "bg-amber-500" },
+const featureCards = [
+  {
+    label: "Orders",
+    caption: "Track & update",
+    Icon: ClipboardList,
+    tone: "bg-emerald-500",
+  },
+  {
+    label: "Inventory",
+    caption: "Menu & stock",
+    Icon: Package,
+    tone: "bg-sky-500",
+  },
+  {
+    label: "Settings",
+    caption: "Store controls",
+    Icon: Settings2,
+    tone: "bg-amber-500",
+  },
+];
+
+const capabilityTags = [
+  "Real-time orders",
+  "Menu editor",
+  "Inventory",
+  "Payments",
+  "Analytics",
+  "Staff access",
 ];
 
 export default function LoginClient() {
@@ -90,34 +117,42 @@ export default function LoginClient() {
               </div>
 
               <div className="grid gap-3 py-5 sm:grid-cols-3">
-                {activityRows.map((row, index) => (
+                {featureCards.map((card, index) => (
                   <div
-                    key={row.label}
+                    key={card.label}
                     className="animate-login-card rounded-xl border border-[#241c1714] bg-white/78 p-4 shadow-sm"
                     style={{ animationDelay: `${index * 120}ms` }}
                   >
-                    <div className={`mb-4 h-1.5 w-9 rounded-full ${row.tone}`} />
-                    <p className="text-xs font-medium text-[#75685d]">{row.label}</p>
-                    <p className="mt-1 text-2xl font-semibold tracking-normal text-[#171412]">{row.value}</p>
+                    <div className="mb-3 flex size-9 items-center justify-center rounded-lg bg-[#f4ede1] text-[#171412]">
+                      <card.Icon className="size-4.5" />
+                    </div>
+                    <div className={`mb-2 h-1 w-8 rounded-full ${card.tone}`} />
+                    <p className="text-sm font-semibold tracking-normal text-[#171412]">{card.label}</p>
+                    <p className="mt-0.5 text-xs font-medium text-[#75685d]">{card.caption}</p>
                   </div>
                 ))}
               </div>
 
               <div className="rounded-xl border border-[#241c1714] bg-[#171412] p-5 text-white">
-                <div className="mb-5 flex items-center justify-between">
-                  <p className="text-sm font-medium text-white/86">Service pulse</p>
+                <div className="mb-4 flex items-center justify-between">
+                  <p className="text-sm font-medium text-white/86">Everything you can manage</p>
                   <Sparkles className="size-4 text-[#f6bd55]" />
                 </div>
-                <div className="space-y-3">
-                  {[78, 54, 88, 64].map((width, index) => (
-                    <div key={width} className="h-2 overflow-hidden rounded-full bg-white/10">
-                      <div
-                        className="admin-login-meter h-full rounded-full bg-[#f6bd55]"
-                        style={{ width: `${width}%`, animationDelay: `${index * 160}ms` }}
-                      />
-                    </div>
+                <div className="flex flex-wrap gap-2">
+                  {capabilityTags.map((tag, index) => (
+                    <span
+                      key={tag}
+                      className="animate-login-card rounded-full border border-white/12 bg-white/8 px-3 py-1.5 text-xs font-medium text-white/85"
+                      style={{ animationDelay: `${index * 90}ms` }}
+                    >
+                      {tag}
+                    </span>
                   ))}
                 </div>
+                <p className="mt-4 text-xs leading-5 text-white/55">
+                  One secure console for your entire restaurant — from the first
+                  order to the daily close.
+                </p>
               </div>
             </div>
           </div>

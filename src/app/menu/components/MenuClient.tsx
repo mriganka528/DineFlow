@@ -739,21 +739,21 @@ export default function MenuClient({
               </div>
 
               {/* Order type toggle */}
-              <div className="flex items-center gap-1 self-start rounded-full bg-white/80 p-1 shadow-sm ring-1 ring-black/5 backdrop-blur">
+              <div className="flex items-center gap-1.5 self-start rounded-full border border-amber-200/70 bg-white/90 p-1.5 shadow-md shadow-amber-500/10 ring-1 ring-black/5 backdrop-blur">
                 <Button
                   type="button"
                   variant="ghost"
                   onClick={() => setOrderType("DINE_IN")}
                   disabled={!settings.dineInEnabled}
                   className={cn(
-                    "inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium transition-all duration-300",
+                    "inline-flex items-center gap-2 rounded-full px-7 py-3 text-base font-semibold transition-all duration-300",
                     orderType === "DINE_IN"
-                      ? "bg-zinc-900 text-white shadow-md"
-                      : "text-zinc-600 hover:text-zinc-900",
+                      ? "bg-linear-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/30"
+                      : "text-zinc-600 hover:bg-amber-50 hover:text-amber-700",
                     !settings.dineInEnabled && "cursor-not-allowed opacity-40",
                   )}
                 >
-                  <Store className="size-4" />
+                  <Store className="size-5" />
                   Dine in
                 </Button>
                 <Button
@@ -762,14 +762,14 @@ export default function MenuClient({
                   onClick={() => setOrderType("DELIVERY")}
                   disabled={!settings.deliveryEnabled}
                   className={cn(
-                    "inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium transition-all duration-300",
+                    "inline-flex items-center gap-2 rounded-full px-7 py-3 text-base font-semibold transition-all duration-300",
                     orderType === "DELIVERY"
-                      ? "bg-zinc-900 text-white shadow-md"
-                      : "text-zinc-600 hover:text-zinc-900",
+                      ? "bg-linear-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/30"
+                      : "text-zinc-600 hover:bg-amber-50 hover:text-amber-700",
                     !settings.deliveryEnabled && "cursor-not-allowed opacity-40",
                   )}
                 >
-                  <Bike className="size-4" />
+                  <Bike className="size-5" />
                   Delivery
                 </Button>
               </div>

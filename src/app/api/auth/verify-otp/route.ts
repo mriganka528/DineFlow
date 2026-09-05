@@ -7,9 +7,22 @@ import {
   CUSTOMER_SESSION_COOKIE,
   CUSTOMER_SESSION_MAX_AGE,
 } from "@/lib/customer-session";
+import { createRateLimiter, getClientIp } from "@/lib/rate-limit";
+
+// Limit verification attempts per client: max 10 requests / 5 min.
+const verifyOtpLimiter = createRateLimiter({ windowMs: 5 * 60 * 1000, max: 10 });
 
 export async function POST(request: Request) {
   try {
+    const ip = getClientIp(request);
+    const limit = verifyOtpLimiter(ip);
+    if (!limit.success) {
+      return NextResponse.json(
+        { success: false, message: "Too many attempts. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfter) } },
+      );
+    }
+
     const body = await request.json();
     const result = otpVerifySchema.safeParse(body);
 

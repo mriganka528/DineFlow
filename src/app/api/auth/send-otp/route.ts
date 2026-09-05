@@ -9,9 +9,22 @@ import {
   RESEND_COOLDOWN_SECONDS,
 } from "@/lib/otp";
 import { sendOtpEmail } from "@/lib/email";
+import { createRateLimiter, getClientIp } from "@/lib/rate-limit";
+
+// Limit how often a single client can request codes: max 5 requests / 10 min.
+const sendOtpLimiter = createRateLimiter({ windowMs: 10 * 60 * 1000, max: 5 });
 
 export async function POST(request: Request) {
   try {
+    const ip = getClientIp(request);
+    const limit = sendOtpLimiter(ip);
+    if (!limit.success) {
+      return NextResponse.json(
+        { success: false, message: "Too many requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfter) } },
+      );
+    }
+
     const body = await request.json();
     const mode: string = body.mode ?? "legacy";
 
