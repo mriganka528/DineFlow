@@ -2,7 +2,6 @@
 
 import { useCallback, useRef, useState } from "react";
 import { Upload, X, Loader2, Check } from "lucide-react";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import api from "@/lib/api";
@@ -13,6 +12,8 @@ interface ImageUploadProps {
   value?: string;
   publicId?: string;
   disabled?: boolean;
+  /** Render a small thumbnail-style picker (useful for logos). */
+  compact?: boolean;
   onChange?: (result: { url: string; publicId: string }) => void;
   onRemove?: () => void;
 }
@@ -25,6 +26,7 @@ export function ImageUpload({
   value,
   publicId,
   disabled = false,
+  compact = false,
   onChange,
   onRemove,
 }: ImageUploadProps) {
@@ -82,7 +84,7 @@ export function ImageUpload({
         setUploading(false);
       }
     },
-    [uploadedImage?.publicId, onChange]
+    [uploadedImage, onChange]
   );
 
   const handleDrag = (e: React.DragEvent<HTMLDivElement>) => {
@@ -120,6 +122,86 @@ export function ImageUpload({
       fileInputRef.current.value = "";
     }
   };
+
+  if (compact) {
+    return (
+      <div className="space-y-2">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileSelect}
+          disabled={disabled || uploading}
+          className="hidden"
+          aria-label="Upload image"
+        />
+
+        <div className="flex flex-wrap items-center gap-3">
+          <div
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+            className={cn(
+              "relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border-2 border-dashed bg-muted/30 transition-colors",
+              dragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25",
+              uploading && "pointer-events-none opacity-70",
+            )}
+          >
+            {uploadedImage ? (
+              <FoodImage
+                src={uploadedImage.url}
+                alt="Restaurant logo"
+                width={128}
+                height={128}
+                className="size-full object-cover"
+              />
+            ) : (
+              <Upload className="size-5 text-muted-foreground" />
+            )}
+
+            {uploading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/70">
+                <Loader2 className="size-4 animate-spin text-primary" />
+              </div>
+            )}
+          </div>
+
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <p className="text-xs font-medium text-foreground">
+              {uploadedImage ? "Restaurant logo" : "Upload a restaurant logo"}
+            </p>
+            <p className="text-xs text-muted-foreground">PNG, JPG or WebP. Max 5MB.</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={disabled || uploading}
+              >
+                <Upload className="size-3.5" />
+                {uploadedImage ? "Change logo" : "Select logo"}
+              </Button>
+              {uploadedImage && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRemove}
+                  disabled={disabled || uploading}
+                  className="text-muted-foreground hover:text-destructive"
+                >
+                  <X className="size-3.5" />
+                  Remove
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">

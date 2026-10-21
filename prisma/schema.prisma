@@ -51,7 +51,12 @@ enum OrderMode {
   CLOSED
 }
 
- 
+enum AdminOtpPurpose {
+  PASSWORD_RESET
+  EMAIL_CHANGE
+  LOGIN
+}
+
 // ADMIN
  
 
@@ -72,6 +77,34 @@ model Admin {
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  otps          AdminOtp[]
+}
+
+// ADMIN OTP
+
+model AdminOtp {
+  id          String          @id @default(cuid())
+
+  adminId     String
+  admin       Admin           @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  // Destination email for the code (new email for EMAIL_CHANGE).
+  email       String
+  purpose     AdminOtpPurpose
+
+  otpHash     String
+  expiresAt   DateTime
+
+  attempts    Int             @default(0)
+  resendCount Int             @default(0)
+  verified    Boolean         @default(false)
+
+  createdAt   DateTime        @default(now())
+
+  @@index([adminId, purpose])
+  @@index([email])
+  @@index([expiresAt])
 }
 
  

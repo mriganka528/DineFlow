@@ -513,8 +513,8 @@ export default function OrdersClient({ currency, restaurant }: { currency: strin
           if (!open) setSelectedOrder(null);
         }}
       >
-        <AlertDialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
-          <AlertDialogHeader>
+        <AlertDialogContent className="flex max-h-[90dvh] max-w-2xl flex-col gap-4 overflow-hidden data-[size=default]:max-w-[calc(100vw-2rem)] data-[size=default]:sm:max-w-2xl">
+          <AlertDialogHeader className="shrink-0">
             <AlertDialogTitle className="flex items-center gap-2">
               <Hash className="size-5" />
               Order #{selectedOrder?.orderNumber}
@@ -526,8 +526,9 @@ export default function OrdersClient({ currency, restaurant }: { currency: strin
             </AlertDialogDescription>
           </AlertDialogHeader>
 
-          {selectedOrder && (
-            <div className="space-y-4">
+          <div className="-mx-4 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4">
+            {selectedOrder && (
+              <div className="space-y-4">
               {/* Status badges */}
               <div className="flex flex-wrap gap-2">
                 <span
@@ -761,9 +762,10 @@ export default function OrdersClient({ currency, restaurant }: { currency: strin
                 </div>
               </div>
             </div>
-          )}
+            )}
+          </div>
 
-          <AlertDialogFooter>
+          <AlertDialogFooter className="shrink-0">
             <AlertDialogCancel>Close</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>

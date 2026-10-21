@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import type { AdminOtpPurpose } from "@prisma/client";
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -53,6 +54,138 @@ export async function sendOtpEmail({
     console.log("OTP email sent:", { to, messageId: info.messageId });
   } catch (error) {
     console.error("Nodemailer error:", { to, error });
+    throw error instanceof Error ? error : new Error(String(error));
+  }
+}
+
+interface AdminOtpEmailParams {
+  to: string;
+  otp: string;
+  purpose: AdminOtpPurpose;
+  recipientName?: string | null;
+}
+
+const ADMIN_OTP_EXPIRY_MINUTES = 10;
+
+export async function sendAdminOtpEmail({
+  to,
+  otp,
+  purpose,
+  recipientName,
+}: AdminOtpEmailParams) {
+  const greeting = recipientName ? `Hi ${esc(recipientName)},` : "Hello,";
+  const content =
+    purpose === "PASSWORD_RESET"
+      ? {
+          title: "Reset your admin password",
+          intro:
+            "We received a request to reset the password for your DineFlow admin account. Use the code below to continue.",
+          subject: "Reset your DineFlow admin password",
+          warning:
+            "If you did not request a password reset, you can safely ignore this email. Your password has not been changed.",
+          actionLabel: "PASSWORD RESET",
+        }
+      : purpose === "EMAIL_CHANGE"
+        ? {
+            title: "Confirm your new email",
+            intro:
+              "We received a request to change the email address on your DineFlow admin account. Use the code below to confirm the new address.",
+            subject: "Confirm your new DineFlow admin email",
+            warning:
+              "If you did not request this change, you can safely ignore this email. Your admin email will stay the same.",
+            actionLabel: "EMAIL CHANGE",
+          }
+        : {
+            title: "Verify your admin sign-in",
+            intro:
+              "A sign-in attempt for your DineFlow admin account needs verification. Use the code below to finish signing in.",
+            subject: "Your DineFlow admin sign-in code",
+            warning:
+              "If you did not try to sign in, someone may know your password. Do not share this code, and reset your password immediately.",
+            actionLabel: "SIGN-IN VERIFICATION",
+          };
+  const { title, intro, subject, warning, actionLabel } = content;
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0" />
+<title>${title}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f1eb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f1eb;padding:40px 16px;">
+  <tr>
+    <td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(23,20,18,0.12);">
+        <tr>
+          <td style="background-color:#171412;padding:28px 32px;text-align:center;">
+            <div style="display:inline-block;width:44px;height:44px;line-height:44px;border-radius:12px;background-color:#d9462b;font-size:22px;">&#127860;</div>
+            <p style="margin:12px 0 0;font-size:16px;font-weight:700;color:#ffffff;letter-spacing:0.3px;">DineFlow Admin</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:34px 32px 30px;">
+            <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#b93a24;text-transform:uppercase;letter-spacing:1px;">${actionLabel}</p>
+            <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:#171412;">${title}</h1>
+            <p style="margin:0 0 8px;font-size:15px;color:#57534e;line-height:1.6;">${greeting}</p>
+            <p style="margin:0 0 26px;font-size:15px;color:#57534e;line-height:1.6;">${intro}</p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td align="center">
+                  <div style="display:inline-block;background-color:#fff7ed;border:2px solid #fed7aa;border-radius:12px;padding:20px 34px;">
+                    <span style="font-size:34px;font-weight:800;letter-spacing:12px;color:#9a3412;font-family:'Courier New',Courier,monospace;">${otp}</span>
+                  </div>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:24px 0 0;font-size:13px;color:#92400e;text-align:center;">This code expires in <strong>${ADMIN_OTP_EXPIRY_MINUTES} minutes</strong>.</p>
+            <div style="margin-top:24px;padding:14px 16px;background-color:#f5f5f4;border-radius:10px;border:1px solid #e7e5e4;">
+              <p style="margin:0;font-size:13px;color:#57534e;line-height:1.6;">&#128274;&nbsp; ${warning}</p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:18px 32px;background-color:#faf8f4;border-top:1px solid #ede6db;">
+            <p style="margin:0;font-size:11px;color:#8a7c6e;text-align:center;line-height:1.6;">Never share this code with anyone. DineFlow will never ask for it by phone or chat.</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>`;
+
+  const text = [
+    "DineFlow Admin",
+    "",
+    title,
+    "",
+    greeting,
+    intro,
+    "",
+    `  ${otp}`,
+    "",
+    `This code expires in ${ADMIN_OTP_EXPIRY_MINUTES} minutes.`,
+    warning,
+    "",
+    "Never share this code with anyone. DineFlow will never ask for it by phone or chat.",
+  ].join("\n");
+
+  const from = `DineFlow Admin <${process.env.EMAIL_USER}>`;
+
+  try {
+    const info = await transporter.sendMail({
+      from,
+      to,
+      subject,
+      html,
+      text,
+    });
+    console.log("Admin OTP email sent:", { to, purpose, messageId: info.messageId });
+  } catch (error) {
+    console.error("Nodemailer error (admin OTP):", { to, purpose, error });
     throw error instanceof Error ? error : new Error(String(error));
   }
 }

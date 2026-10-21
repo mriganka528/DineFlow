@@ -1,4 +1,5 @@
 import { getRestaurantSettings } from "@/actions/settings";
+import { getAdminSession } from "@/lib/admin-auth";
 import SettingsClient from "./components/SettingsClient";
 import { RestaurantSettings } from "./types";
 
@@ -24,10 +25,12 @@ export default async function Settings() {
   logoPublicId: null,
 };
   const restaurant = await getRestaurantSettings();
+  const session = await getAdminSession();
 
   return (
     <SettingsClient
       initialSettings={restaurant ?? defaultSettings}
+      adminEmail={session?.email ?? ""}
     />
   );
 }

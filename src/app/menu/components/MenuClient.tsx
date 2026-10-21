@@ -5,10 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Banknote,
   Bike,
   Check,
   ChevronRight,
   Clock3,
+  CreditCard,
   Flame,
   Loader2,
   MapPin,
@@ -145,7 +147,7 @@ export default function MenuClient({
   const [availableOnly, setAvailableOnly] = useState(true);
   const [addedItemId, setAddedItemId] = useState<string | null>(null);
   const [orderType, setOrderType] = useState<OrderType>("DINE_IN");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("ONLINE");
   const [tableNumber, setTableNumber] = useState("");
   const [checkingOut, setCheckingOut] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -1239,7 +1241,7 @@ export default function MenuClient({
           </Button>
 
           <AlertDialog open={checkoutOpen} onOpenChange={setCheckoutOpen}>
-            <AlertDialogContent className="max-h-[90vh] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-2xl sm:max-w-lg">
+            <AlertDialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl data-[size=default]:max-w-[calc(100vw-2rem)] data-[size=default]:sm:max-w-lg">
               <AlertDialogHeader>
                 <AlertDialogTitle className="text-xl">
                   Review your order
@@ -1303,46 +1305,119 @@ export default function MenuClient({
 
               {/* Order options */}
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-zinc-500">
-                      Payment
-                    </label>
-                    <Select
-                      value={paymentMethod}
-                      onValueChange={(v) =>
-                        setPaymentMethod(v as PaymentMethod)
-                      }
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      id="payment-method-label"
+                      className="text-sm font-semibold text-zinc-800"
                     >
-                      <SelectTrigger className="h-10 rounded-lg text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="CASH">Cash</SelectItem>
-                        <SelectItem value="ONLINE">Pay Online</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      Payment method
+                    </span>
+                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                      Secure
+                    </span>
                   </div>
-                  {orderType === "DINE_IN" && (
-                    <div className="space-y-1.5">
-                      <label
-                        htmlFor="table-number"
-                        className="text-xs font-medium text-zinc-500"
+                  <div
+                    role="group"
+                    aria-labelledby="payment-method-label"
+                    className="grid grid-cols-2 gap-2.5"
+                  >
+                    <button
+                      type="button"
+                      aria-pressed={paymentMethod === "ONLINE"}
+                      onClick={() => setPaymentMethod("ONLINE")}
+                      className={cn(
+                        "relative flex items-start gap-2.5 rounded-xl border-2 p-3 text-left transition-all",
+                        paymentMethod === "ONLINE"
+                          ? "border-amber-500 bg-amber-50 shadow-sm ring-1 ring-amber-200"
+                          : "border-zinc-200 bg-white hover:border-amber-200 hover:bg-amber-50/40",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors",
+                          paymentMethod === "ONLINE"
+                            ? "bg-amber-500 text-white"
+                            : "bg-zinc-100 text-zinc-500",
+                        )}
                       >
-                        Table number
-                      </label>
-                      <Input
-                        id="table-number"
-                        type="number"
-                        min="1"
-                        value={tableNumber}
-                        onChange={(e) => setTableNumber(e.target.value)}
-                        placeholder="Optional"
-                        className="h-10 rounded-lg text-sm"
-                      />
-                    </div>
-                  )}
+                        <CreditCard className="size-4.5" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-bold text-zinc-900">
+                          Pay Online
+                        </span>
+                        <span className="mt-0.5 block text-[11px] leading-4 text-zinc-500">
+                          UPI, cards &amp; netbanking
+                        </span>
+                      </span>
+                      {paymentMethod === "ONLINE" && (
+                        <span className="absolute right-2 top-2 flex size-4 items-center justify-center rounded-full bg-amber-500 text-white">
+                          <Check className="size-2.5" />
+                        </span>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      aria-pressed={paymentMethod === "CASH"}
+                      onClick={() => setPaymentMethod("CASH")}
+                      className={cn(
+                        "relative flex items-start gap-2.5 rounded-xl border-2 p-3 text-left transition-all",
+                        paymentMethod === "CASH"
+                          ? "border-amber-500 bg-amber-50 shadow-sm ring-1 ring-amber-200"
+                          : "border-zinc-200 bg-white hover:border-amber-200 hover:bg-amber-50/40",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors",
+                          paymentMethod === "CASH"
+                            ? "bg-amber-500 text-white"
+                            : "bg-zinc-100 text-zinc-500",
+                        )}
+                      >
+                        <Banknote className="size-4.5" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-bold text-zinc-900">Cash</span>
+                        <span className="mt-0.5 block text-[11px] leading-4 text-zinc-500">
+                          {orderType === "DELIVERY" ? "Pay on delivery" : "Pay at the counter"}
+                        </span>
+                      </span>
+                      {paymentMethod === "CASH" && (
+                        <span className="absolute right-2 top-2 flex size-4 items-center justify-center rounded-full bg-amber-500 text-white">
+                          <Check className="size-2.5" />
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                  <p className="rounded-lg bg-zinc-50 px-3 py-2 text-[11px] leading-5 text-zinc-500">
+                    {paymentMethod === "ONLINE"
+                      ? "You'll complete payment securely through Razorpay before your order is confirmed."
+                      : "Your order will be confirmed now and you can pay in cash when you receive it."}
+                  </p>
                 </div>
+
+                {orderType === "DINE_IN" && (
+                  <div className="space-y-1.5">
+                    <label
+                      htmlFor="table-number"
+                      className="text-xs font-medium text-zinc-500"
+                    >
+                      Table number
+                    </label>
+                    <Input
+                      id="table-number"
+                      type="number"
+                      min="1"
+                      value={tableNumber}
+                      onChange={(e) => setTableNumber(e.target.value)}
+                      placeholder="Optional"
+                      className="h-10 rounded-lg text-sm"
+                    />
+                  </div>
+                )}
 
                 {/* Delivery address section */}
                 {orderType === "DELIVERY" && (
@@ -1578,6 +1653,12 @@ export default function MenuClient({
                     {formatPrice(serviceCharge, settings.currency)}
                   </span>
                 </div>
+                <div className="flex justify-between text-zinc-500">
+                  <span>Payment</span>
+                  <span className="font-semibold text-zinc-900">
+                    {paymentMethod === "ONLINE" ? "Pay Online" : "Cash"}
+                  </span>
+                </div>
                 <div className="flex justify-between border-t border-zinc-200 pt-2 text-base font-bold text-zinc-900">
                   <span>Total</span>
                   <span>{formatPrice(total, settings.currency)}</span>
@@ -1603,6 +1684,8 @@ export default function MenuClient({
                       <Loader2 className="size-4 animate-spin" />
                       Placing order...
                     </>
+                  ) : paymentMethod === "ONLINE" ? (
+                    `Pay ${formatPrice(total, settings.currency)} online`
                   ) : (
                     "Place order"
                   )}

@@ -2,12 +2,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import {
     Bell,
     Building2,
     Clock,
     Globe2,
     Loader2,
+    LockKeyhole,
     Mail,
     MapPin,
     Moon,
@@ -16,9 +18,9 @@ import {
     RotateCcw,
     Save,
     Settings as SettingsIcon,
+    ShieldCheck,
     Sun,
     Utensils,
-    Image as ImageIcon,
 } from 'lucide-react';
 import { useTheme } from "next-themes"
 import toast from 'react-hot-toast';
@@ -45,9 +47,11 @@ import { ImageUpload } from '@/components/ui/image-upload';
 
 interface SettingsClientProps {
     initialSettings: RestaurantSettings;
+    adminEmail: string;
 }
 
-export default function SettingsClient({ initialSettings }: SettingsClientProps) {
+export default function SettingsClient({ initialSettings, adminEmail }: SettingsClientProps) {
+    const router = useRouter();
     const [settings, setSettings] = useState<RestaurantSettings>(initialSettings);
     const [currentSavedSettings, setCurrentSavedSettings] = useState<RestaurantSettings>(initialSettings);
     const [saving, setSaving] = useState(false);
@@ -56,9 +60,35 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
     const [logoUrl, setLogoUrl] = useState<string | null>(initialSettings.logoUrl ?? null);
     const [logoPublicId, setLogoPublicId] = useState<string | null>(initialSettings.logoPublicId ?? null);
 
+    // Admin account email change
+    const [currentAdminEmail, setCurrentAdminEmail] = useState(adminEmail);
+    const [emailStep, setEmailStep] = useState<'idle' | 'code'>('idle');
+    const [newAdminEmail, setNewAdminEmail] = useState('');
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [emailCode, setEmailCode] = useState('');
+    const [emailError, setEmailError] = useState('');
+    const [emailNotice, setEmailNotice] = useState('');
+    const [isSendingEmailCode, setIsSendingEmailCode] = useState(false);
+    const [isVerifyingEmailCode, setIsVerifyingEmailCode] = useState(false);
+    const [emailResendCooldown, setEmailResendCooldown] = useState(0);
+
     const currencyOptions = useMemo(() => getCurrencyOptions(), []);
 
-    useEffect(() => { setMounted(true) }, []);
+    useEffect(() => {
+        // Theme is only known after mount; avoid hydration mismatches.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setMounted(true);
+    }, []);
+
+    useEffect(() => {
+        if (emailResendCooldown <= 0) return;
+
+        const timer = setInterval(() => {
+            setEmailResendCooldown((current) => Math.max(0, current - 1));
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [emailResendCooldown]);
 
     const updateSetting = <Key extends keyof RestaurantSettings>(
         key: Key,
@@ -124,6 +154,107 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
     const handleReset = () => {
         setSettings(currentSavedSettings);
         toast.success("Settings reset to defaults");
+    };
+
+    const handleSendEmailCode = async (event?: React.FormEvent<HTMLFormElement>) => {
+        event?.preventDefault();
+        setEmailError("");
+        setEmailNotice("");
+
+        const targetEmail = newAdminEmail.trim().toLowerCase();
+
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(targetEmail)) {
+            setEmailError("Enter a valid email address.");
+            return;
+        }
+
+        if (targetEmail === currentAdminEmail.toLowerCase()) {
+            setEmailError("This is already your current email address.");
+            return;
+        }
+
+        if (!currentPassword) {
+            setEmailError("Enter your current password to continue.");
+            return;
+        }
+
+        try {
+            setIsSendingEmailCode(true);
+            const response = await axios.post("/api/admin/account/change-email/send", {
+                newEmail: targetEmail,
+                currentPassword,
+            });
+
+            setNewAdminEmail(targetEmail);
+            setEmailNotice(
+                response.data?.message ||
+                `A verification code has been sent to ${targetEmail}.`,
+            );
+            setEmailStep("code");
+            setEmailCode("");
+            setEmailResendCooldown(60);
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                setEmailError(
+                    error.response?.data?.message ||
+                    "Could not send the verification code. Please try again.",
+                );
+            } else {
+                setEmailError("Could not send the verification code. Please try again.");
+            }
+        } finally {
+            setIsSendingEmailCode(false);
+        }
+    };
+
+    const handleVerifyEmailCode = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setEmailError("");
+        setEmailNotice("");
+
+        if (!/^[0-9]{6}$/.test(emailCode.trim())) {
+            setEmailError("Enter the 6-digit verification code.");
+            return;
+        }
+
+        try {
+            setIsVerifyingEmailCode(true);
+            const response = await axios.post("/api/admin/account/change-email/verify", {
+                newEmail: newAdminEmail,
+                code: emailCode.trim(),
+            });
+
+            const updatedEmail = response.data?.email || newAdminEmail;
+            setCurrentAdminEmail(updatedEmail);
+            setEmailStep("idle");
+            setNewAdminEmail("");
+            setCurrentPassword("");
+            setEmailCode("");
+            setEmailNotice("");
+            toast.success("Admin email updated successfully");
+            router.refresh();
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                setEmailError(
+                    error.response?.data?.message ||
+                    "Could not update your email. Please try again.",
+                );
+            } else {
+                setEmailError("Could not update your email. Please try again.");
+            }
+        } finally {
+            setIsVerifyingEmailCode(false);
+        }
+    };
+
+    const cancelEmailChange = () => {
+        setEmailStep("idle");
+        setNewAdminEmail("");
+        setCurrentPassword("");
+        setEmailCode("");
+        setEmailError("");
+        setEmailNotice("");
+        setEmailResendCooldown(0);
     };
 
     return (
@@ -223,6 +354,7 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
                                 <Field label="Restaurant logo" htmlFor="logo">
                                     <div className="space-y-3">
                                         <ImageUpload
+                                            compact
                                             value={logoUrl ?? undefined}
                                             publicId={logoPublicId ?? undefined}
                                             onChange={({ url, publicId }) => {
@@ -242,6 +374,182 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
                                     </div>
                                 </Field>
                             </div>
+                        </div>
+                    </SettingsPanel>
+
+                    <SettingsPanel
+                        icon={<ShieldCheck className="size-5" />}
+                        title="Admin account"
+                        description="Change the email address used to sign in to this admin panel. The new address is verified with a one-time code."
+                    >
+                        <div className="space-y-4">
+                            <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="flex min-w-0 items-center gap-2.5">
+                                    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                        <Mail className="size-4" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                                            Signed-in admin
+                                        </p>
+                                        <p className="truncate text-sm font-medium">
+                                            {currentAdminEmail || "Not available"}
+                                        </p>
+                                    </div>
+                                </div>
+                                <span className="shrink-0 rounded-md bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-600">
+                                    Protected change
+                                </span>
+                            </div>
+
+                            {emailStep === "idle" ? (
+                                <form className="space-y-4" onSubmit={handleSendEmailCode}>
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <Field label="New email address" htmlFor="admin-new-email">
+                                            <div className="relative">
+                                                <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                                                <Input
+                                                    id="admin-new-email"
+                                                    type="email"
+                                                    autoComplete="email"
+                                                    value={newAdminEmail}
+                                                    onChange={(event) => {
+                                                        setNewAdminEmail(event.target.value);
+                                                        setEmailError("");
+                                                    }}
+                                                    placeholder="new-admin@restaurant.com"
+                                                    className="w-full bg-background pl-9"
+                                                />
+                                            </div>
+                                        </Field>
+
+                                        <Field label="Current password" htmlFor="admin-current-password">
+                                            <div className="relative">
+                                                <LockKeyhole className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                                                <Input
+                                                    id="admin-current-password"
+                                                    type="password"
+                                                    autoComplete="current-password"
+                                                    value={currentPassword}
+                                                    onChange={(event) => {
+                                                        setCurrentPassword(event.target.value);
+                                                        setEmailError("");
+                                                    }}
+                                                    placeholder="Confirm it's you"
+                                                    className="w-full bg-background pl-9"
+                                                />
+                                            </div>
+                                        </Field>
+                                    </div>
+
+                                    <p className="text-xs leading-relaxed text-muted-foreground">
+                                        A 6-digit code will be sent to the new address. Enter it to finish the change. Your current password is required to protect this account.
+                                    </p>
+
+                                    {emailNotice && (
+                                        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                                            {emailNotice}
+                                        </p>
+                                    )}
+
+                                    {emailError && (
+                                        <p
+                                            role="alert"
+                                            className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"
+                                        >
+                                            {emailError}
+                                        </p>
+                                    )}
+
+                                    <div className="flex justify-end">
+                                        <Button
+                                            type="submit"
+                                            size="sm"
+                                            disabled={isSendingEmailCode}
+                                        >
+                                            {isSendingEmailCode ? (
+                                                <Loader2 className="size-4 animate-spin" />
+                                            ) : (
+                                                <Mail className="size-4" />
+                                            )}
+                                            {isSendingEmailCode ? "Sending code..." : "Send verification code"}
+                                        </Button>
+                                    </div>
+                                </form>
+                            ) : (
+                                <form className="space-y-4" onSubmit={handleVerifyEmailCode}>
+                                    {emailNotice && (
+                                        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                                            {emailNotice}
+                                        </p>
+                                    )}
+
+                                    <Field
+                                        label={`Verification code sent to ${newAdminEmail}`}
+                                        htmlFor="admin-email-code"
+                                    >
+                                        <Input
+                                            id="admin-email-code"
+                                            type="text"
+                                            inputMode="numeric"
+                                            autoComplete="one-time-code"
+                                            maxLength={6}
+                                            value={emailCode}
+                                            onChange={(event) => {
+                                                setEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6));
+                                                setEmailError("");
+                                            }}
+                                            placeholder="123456"
+                                            className="w-full bg-background text-center text-lg font-semibold tracking-[0.35em]"
+                                        />
+                                    </Field>
+
+                                    {emailError && (
+                                        <p
+                                            role="alert"
+                                            className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"
+                                        >
+                                            {emailError}
+                                        </p>
+                                    )}
+
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <div className="flex items-center gap-3">
+                                            <Button
+                                                type="submit"
+                                                size="sm"
+                                                disabled={isVerifyingEmailCode || emailCode.length !== 6}
+                                            >
+                                                {isVerifyingEmailCode && (
+                                                    <Loader2 className="size-4 animate-spin" />
+                                                )}
+                                                {isVerifyingEmailCode ? "Updating..." : "Confirm email change"}
+                                            </Button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleSendEmailCode()}
+                                                disabled={emailResendCooldown > 0 || isSendingEmailCode}
+                                                className="text-xs font-medium text-primary transition hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline"
+                                            >
+                                                {isSendingEmailCode
+                                                    ? "Sending..."
+                                                    : emailResendCooldown > 0
+                                                        ? `Resend in ${emailResendCooldown}s`
+                                                        : "Resend code"}
+                                            </button>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={cancelEmailChange}
+                                            disabled={isVerifyingEmailCode}
+                                        >
+                                            Cancel
+                                        </Button>
+                                    </div>
+                                </form>
+                            )}
                         </div>
                     </SettingsPanel>
 

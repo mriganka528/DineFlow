@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import {
+  ADMIN_LOGIN_CHALLENGE_MAX_AGE,
   ADMIN_SESSION_MAX_AGE,
   ADMIN_SESSION_COOKIE,
   ADMIN_REMEMBERED_SESSION_MAX_AGE,
@@ -17,6 +18,17 @@ type AdminTokenPayload = {
   adminId: string;
   email: string;
   role: Role;
+};
+
+type AdminLoginChallengeInput = {
+  id: string;
+  email: string;
+};
+
+type AdminLoginChallengePayload = {
+  adminId: string;
+  email: string;
+  remember: boolean;
 };
 
 export {
@@ -59,8 +71,53 @@ export function verifyAdminToken(token: string): AdminTokenPayload {
       issuer: "foodbot",
     }) as AdminTokenPayload;
     return payload;
-  } catch (error) {
+  } catch {
     throw new Error("Invalid admin token");
+  }
+}
+
+/**
+ * Short-lived signed proof that an admin passed the password step and is
+ * waiting to enter the emailed login code.
+ */
+export function generateAdminLoginChallenge(
+  admin: AdminLoginChallengeInput,
+  remember: boolean,
+) {
+  return jwt.sign(
+    {
+      adminId: admin.id,
+      email: admin.email,
+      remember,
+    },
+    getJwtSecret(),
+    {
+      audience: "foodbot-admin-login",
+      expiresIn: ADMIN_LOGIN_CHALLENGE_MAX_AGE,
+      issuer: "foodbot",
+      subject: admin.id,
+    },
+  );
+}
+
+export function verifyAdminLoginChallenge(token: string): AdminLoginChallengePayload {
+  try {
+    const payload = jwt.verify(token, getJwtSecret(), {
+      audience: "foodbot-admin-login",
+      issuer: "foodbot",
+    }) as AdminLoginChallengePayload;
+
+    if (
+      typeof payload.adminId !== "string" ||
+      typeof payload.email !== "string" ||
+      typeof payload.remember !== "boolean"
+    ) {
+      throw new Error("Invalid payload");
+    }
+
+    return payload;
+  } catch {
+    throw new Error("Invalid admin login challenge");
   }
 }
 
